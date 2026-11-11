@@ -29,7 +29,7 @@ test("Moja część is voice-only and blocks submission until removed", async ({
   await open.click();
   await expect(page.getByRole("button", { name: "Nagraj: odpowiedź na pytanie 1" })).toBeVisible();
   await expect(page.locator(".contribution-section textarea")).toHaveCount(0);
-  await expect(page.getByText("Limit: 3:00").first()).toBeVisible();
+  await expect(page.getByText("Jedno podejście, limit: 2:00").first()).toBeVisible();
   await page
     .getByLabel("Dlaczego pasujesz do tej roli?")
     .fill("Prowadzę produkty AI w obsłudze klienta i chcę rozwijać pilotaże.");

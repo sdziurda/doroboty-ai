@@ -48,3 +48,9 @@ Participant decision after the first version: "Moja część" answers are record
 - Clips are stored in IndexedDB (`audio-store.ts`); the scenario keeps clip ids (`answerAudioId`, `followUpAudioId`) and transcripts. Submission requires both clips per requirement. Clips are not part of JSON export/import, and the player says so when a clip is missing. Removed the text dictation button.
 - Employer tab: recordings, transcripts and "Podsumowanie AI (symulacja)". Marek's prepared example has no recordings and is labelled as text-only example data.
 - Checks: types, lint, formatting and 36 unit tests pass (submission without recordings is rejected). In Chrome the voice-only section renders with record buttons and the 3:00 limit; an actual recording needs the participant's microphone permission and was not performed by the agent. Browser journeys updated to avoid the microphone; still not run (no Playwright Chromium).
+
+## Change: one take, 2-minute limit (2026-11-11)
+
+Participant test in Chrome: all three answers and follow-ups were recorded and transcribed. The first attempt had failed because the transcript was read before speech recognition delivered its last results; fixed by waiting for recognition to end (max 3 s) and keeping interim text, with specific error messages per recognition error.
+
+Participant decision after the test: candidates must not correct answers endlessly. Each answer and follow-up is now one take of at most 2 minutes. A retry is offered only when recognition produced a too-short transcript (technical failure). Removing the section cannot be undone and the section cannot be reopened on that page. Participant feedback: the questions are fairly difficult.

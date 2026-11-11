@@ -38,12 +38,28 @@ export function recordingSupported() {
 
 export type VoiceValue = { audioId: string; transcript: string };
 
+const speechErrors: Record<string, string> = {
+  "no-speech": "Mikrofon nie wychwycił mowy. Mów bliżej mikrofonu.",
+  "audio-capture":
+    "Rozpoznawanie mowy nie ma dostępu do mikrofonu. Sprawdź, czy mikrofon nie jest zajęty przez inny program.",
+  network: "Rozpoznawanie mowy w Chrome potrzebuje połączenia z internetem.",
+  "not-allowed": "Przeglądarka nie zezwala na rozpoznawanie mowy na tej stronie.",
+  "service-not-allowed": "Przeglądarka nie zezwala na rozpoznawanie mowy na tej stronie.",
+  "language-not-supported": "Przeglądarka nie rozpoznaje mowy po polsku.",
+};
+const blockingSpeechErrors = new Set([
+  "not-allowed",
+  "service-not-allowed",
+  "language-not-supported",
+]);
+
 const clock = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
 /**
- * Voice-only answer: records audio (max 3 minutes) and builds a transcript with the
- * browser's speech recognition at the same time. No typing.
+ * Voice-only answer: one take of up to MAX_RECORDING_SECONDS while the browser's speech
+ * recognition builds a transcript. No typing. A take whose transcript reaches minLength is
+ * final; a retry is offered only when recognition failed.
  */
 export function VoiceAnswer({
   id,
@@ -53,9 +69,11 @@ export function VoiceAnswer({
   disabled,
   invalid,
   describedBy,
+  minLength,
 }: {
   id: string;
   label: string;
+  minLength: number;
   value: VoiceValue;
   onChange: (next: VoiceValue) => void;
   disabled?: boolean;
@@ -70,6 +88,10 @@ export function VoiceAnswer({
   const recognition = useRef<Recognition | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const finalText = useRef("");
+  const interimText = useRef("");
+  const lastError = useRef("");
+  const recognitionDone = useRef<Promise<void>>(Promise.resolve());
+  const resolveRecognition = useRef<() => void>(() => {});
   const active = useRef(false);
   const timer = useRef<number | null>(null);
   const latest = useRef(value);
@@ -105,14 +127,22 @@ export function VoiceAnswer({
       if (event.data.size) chunks.push(event.data);
     };
     mediaRecorder.onstop = async () => {
+      // Speech recognition delivers its last results after stop(); wait for it (max 3 s).
+      await Promise.race([
+        recognitionDone.current,
+        new Promise((resolve) => window.setTimeout(resolve, 3000)),
+      ]);
+      const transcript = `${finalText.current} ${interimText.current}`.replace(/\s+/g, " ").trim();
       const blob = new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" });
       const audioId = crypto.randomUUID();
       try {
         await saveClip(audioId, blob);
         if (latest.current.audioId) await deleteClip(latest.current.audioId).catch(() => {});
-        onChange({ audioId, transcript: finalText.current.trim() });
-        if (!finalText.current.trim())
-          setProblem("Nie rozpoznano mowy. Nagraj odpowiedź ponownie, mówiąc wyraźnie.");
+        onChange({ audioId, transcript });
+        if (!transcript)
+          setProblem(
+            `Nie rozpoznano mowy. ${speechErrors[lastError.current] ?? "Nagraj odpowiedź ponownie, mówiąc wyraźnie i blisko mikrofonu."}`,
+          );
       } catch {
         setProblem("Nie udało się zapisać nagrania w przeglądarce.");
       }
@@ -121,6 +151,9 @@ export function VoiceAnswer({
     recorder.current = mediaRecorder;
 
     finalText.current = "";
+    interimText.current = "";
+    lastError.current = "";
+    recognitionDone.current = new Promise((resolve) => (resolveRecognition.current = resolve));
     const instance = new Constructor();
     instance.lang = "pl-PL";
     instance.continuous = true;
@@ -132,20 +165,30 @@ export function VoiceAnswer({
         if (result.isFinal) finalText.current = `${finalText.current} ${result[0].transcript}`;
         else interim += result[0].transcript;
       }
+      interimText.current = interim;
       setLive(`${finalText.current} ${interim}`.trim());
     };
     // Chrome ends recognition after silence; keep it running while recording.
     instance.onend = () => {
       if (active.current) {
+        // A session that ended keeps its unfinished words as final text.
+        finalText.current = `${finalText.current} ${interimText.current}`;
+        interimText.current = "";
         try {
           instance.start();
+          return;
         } catch {
-          /* already restarting */
+          /* fall through: recognition cannot restart */
         }
       }
+      resolveRecognition.current();
     };
     instance.onerror = (event) => {
-      if (event.error === "not-allowed") setProblem("Brak zgody na rozpoznawanie mowy.");
+      lastError.current = event.error ?? "";
+      if (event.error && blockingSpeechErrors.has(event.error)) {
+        active.current = false;
+        setProblem(speechErrors[event.error]);
+      }
     };
     recognition.current = instance;
 
@@ -170,6 +213,7 @@ export function VoiceAnswer({
   }
 
   const remaining = Math.max(0, MAX_RECORDING_SECONDS - elapsed);
+  const final = !!value.audioId && value.transcript.trim().length >= minLength;
   return (
     <div className="voice-answer" aria-invalid={invalid || undefined} id={id} tabIndex={-1}>
       <div className="voice-controls">
@@ -184,7 +228,7 @@ export function VoiceAnswer({
             <Square aria-hidden="true" />
             Zakończ nagrywanie
           </Button>
-        ) : (
+        ) : final ? null : (
           <Button
             type="button"
             size="sm"
@@ -200,10 +244,18 @@ export function VoiceAnswer({
         <span id={`${id}-timer`} className="voice-timer" aria-live="polite">
           {recording
             ? `Nagrywanie ${clock(elapsed)} · zostało ${clock(remaining)}`
-            : `Limit: ${clock(MAX_RECORDING_SECONDS)}`}
+            : final
+              ? "Nagranie zapisane. Odpowiedź jest ostateczna."
+              : value.audioId
+                ? "Nie udało się rozpoznać odpowiedzi, możesz nagrać ją ponownie."
+                : `Jedno podejście, limit: ${clock(MAX_RECORDING_SECONDS)}`}
         </span>
       </div>
-      {recording && live && <p className="voice-live">{live}</p>}
+      {recording && (
+        <p className="voice-live" aria-live="polite">
+          {live || "Słucham… rozpoznany tekst pojawi się tutaj."}
+        </p>
+      )}
       {!recording && value.audioId && (
         <div className="voice-result">
           <ClipPlayer audioId={value.audioId} label={`Twoje nagranie: ${label}`} />

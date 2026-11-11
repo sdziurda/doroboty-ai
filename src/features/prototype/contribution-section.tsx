@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   MAX_RECORDING_SECONDS,
@@ -49,6 +50,8 @@ export function ContributionSection({
   showErrors?: boolean;
 }) {
   const supported = recordingSupported();
+  // Answers are one-take: after removing the section it cannot be recorded again here.
+  const [removed, setRemoved] = useState(false);
   const update = (index: number, patch: Partial<ContributionDraft>) =>
     value && onChange(value.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)));
   return (
@@ -59,9 +62,10 @@ export function ContributionSection({
       <h3 id="contribution-title">Moja część</h3>
       <p className="application-help">
         Rekruter przygotował {requirements.length} pytania o wymagania tej roli. Odpowiadasz
-        wyłącznie głosowo: na każde pytanie i dopytanie masz do {minutes} minut nagrania. Opowiedz,
-        co w podobnym projekcie zrobiłaś lub zrobiłeś osobiście, a co zespół. Rekruter zobaczy
-        nagranie, jego zapis i podsumowanie. Sekcja jest opcjonalna.
+        wyłącznie głosowo, w jednym podejściu: na każde pytanie i dopytanie masz do {minutes} minut
+        nagrania, bez poprawiania. Opowiedz, co w podobnym projekcie zrobiłaś lub zrobiłeś
+        osobiście, a co zespół. Rekruter zobaczy nagranie, jego zapis i podsumowanie. Sekcja jest
+        opcjonalna.
       </p>
       {!supported && (
         <p className="prototype-notice">
@@ -69,7 +73,12 @@ export function ContributionSection({
           Chrome, aby odpowiedzieć w tej sekcji.
         </p>
       )}
-      {!value ? (
+      {removed && !value ? (
+        <p className="application-help">
+          Odpowiedzi z sekcji „Moja część” zostały usunięte. W tej aplikacji nie można nagrać ich
+          ponownie.
+        </p>
+      ) : !value ? (
         <div className="record-actions">
           <Button
             type="button"
@@ -110,6 +119,7 @@ export function ContributionSection({
                   <VoiceAnswer
                     id={answerId}
                     label={`odpowiedź na pytanie ${index + 1}`}
+                    minLength={MIN_CONTRIBUTION_ANSWER_LENGTH}
                     describedBy={`${answerId}-question`}
                     disabled={disabled}
                     invalid={incomplete && !ready}
@@ -146,6 +156,7 @@ export function ContributionSection({
                       <VoiceAnswer
                         id={followId}
                         label={`odpowiedź na dopytanie ${index + 1}`}
+                        minLength={MIN_FOLLOW_UP_ANSWER_LENGTH}
                         describedBy={`${followId}-question`}
                         disabled={disabled}
                         invalid={incomplete}
@@ -181,11 +192,13 @@ export function ContributionSection({
                 for (const entry of value)
                   for (const clip of [entry.answerAudioId, entry.followUpAudioId])
                     if (clip) void deleteClip(clip).catch(() => {});
+                setRemoved(true);
                 onChange(null);
               }}
             >
               Usuń odpowiedzi z sekcji „Moja część”
             </Button>
+            <span className="application-help">Usunięcia nie można cofnąć.</span>
           </div>
         </>
       )}

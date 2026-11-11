@@ -299,3 +299,65 @@
   background: var(--gui-color-1);
   color: var(--gui-text);
 }
+
+/* Role requirements (employer job form) and "Moja część" (candidate application). */
+.requirements-editor h2 {
+  font-size: 26px;
+  margin-bottom: 8px;
+}
+.requirements-intro {
+  font-size: 15px;
+  line-height: 1.65;
+  margin-bottom: 8px;
+}
+.requirements-list,
+.contribution-list {
+  display: grid;
+  gap: 20px;
+  margin-top: 20px;
+  list-style: none;
+  padding: 0;
+}
+.requirements-item,
+.contribution-item {
+  display: grid;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--pp-line);
+}
+.requirements-hint {
+  font-size: 13px;
+  line-height: 1.6;
+  background: var(--gui-warning-transparent);
+  border-radius: var(--gui-radius-s);
+  padding: 6px 10px;
+}
+.requirements-question {
+  margin-top: 4px;
+}
+.contribution-question {
+  font-size: 15px;
+  line-height: 1.65;
+}
+.contribution-index {
+  font-weight: 700;
+}
+.contribution-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.contribution-followup {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+  padding-left: 16px;
+  border-left: 3px solid var(--gui-color-1);
+}
+.dictation {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

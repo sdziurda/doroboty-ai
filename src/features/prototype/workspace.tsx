@@ -16,6 +16,9 @@ import { CvAttachment } from "./cv-attachment";
 import { MatchScore } from "./match-score";
 import { RecruitingApplication } from "./recruiting-application";
 import { CandidateApplication } from "./candidate-application";
+import { ContributionSection, contributionComplete } from "./contribution-section";
+import { MIN_CONTRIBUTION_ANSWER_LENGTH } from "./contribution";
+import type { ContributionDraft } from "./model";
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -239,6 +242,20 @@ export function ApplyPage() {
   const notes = draft?.notes ?? "";
   const generated = draft?.generated ?? "";
   const [answer, setAnswer] = useState(draft?.answer ?? "");
+  const requirements = job?.roleRequirements ?? [];
+  const [contribution, setContribution] = useState<ContributionDraft[] | null>(() =>
+    draft?.contribution?.length && requirements.length
+      ? requirements.map(
+          (requirement) =>
+            draft.contribution?.find((x) => x.requirementId === requirement.id) ?? {
+              requirementId: requirement.id,
+              answer: "",
+              followUpQuestion: "",
+              followUpAnswer: "",
+            },
+        )
+      : null,
+  );
   const [consent, setConsent] = useState(false);
   const [message, setMessage] = useState("");
   const [attempted, setAttempted] = useState(false);
@@ -277,11 +294,31 @@ export function ApplyPage() {
       answerInput.current?.focus();
       return;
     }
+    if (contribution && !contributionComplete(contribution)) {
+      const index = contribution.findIndex((entry) => !contributionComplete([entry]));
+      const entry = contribution[index];
+      const target =
+        entry.followUpQuestion && entry.answer.trim().length >= MIN_CONTRIBUTION_ANSWER_LENGTH
+          ? `contribution-follow-${index}`
+          : `contribution-answer-${index}`;
+      document.getElementById(target)?.focus();
+      return;
+    }
     if (!consent) {
       document.getElementById("application-consent")?.focus();
       return;
     }
-    if (run({ type: "submit", jobId: job!.id, notes, generated, answer, consent })) {
+    if (
+      run({
+        type: "submit",
+        jobId: job!.id,
+        notes,
+        generated,
+        answer,
+        consent,
+        contribution: contribution ?? undefined,
+      })
+    ) {
       submittedOnce.current = true;
       setSubmitted(true);
       if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -352,6 +389,18 @@ export function ApplyPage() {
                 : `Minimum ${MIN_APPLICATION_ANSWER_LENGTH} znaków. Obecnie: ${answerLength}.`}
             </p>
           </section>
+          {requirements.length > 0 && (
+            <ContributionSection
+              requirements={requirements}
+              value={contribution}
+              onChange={(next) => {
+                setContribution(next);
+                setConsent(false);
+              }}
+              disabled={submitted}
+              showErrors={attempted}
+            />
+          )}
           <div className="application-form-section application-submit">
             <label className="application-consent">
               <Checkbox
@@ -387,7 +436,16 @@ export function ApplyPage() {
                 disabled={submitted}
                 variant="outline"
                 onClick={() => {
-                  if (run({ type: "draft", jobId: job.id, notes, generated, answer }))
+                  if (
+                    run({
+                      type: "draft",
+                      jobId: job.id,
+                      notes,
+                      generated,
+                      answer,
+                      contribution: contribution ?? undefined,
+                    })
+                  )
                     setMessage("Szkic został zapisany.");
                 }}
               >

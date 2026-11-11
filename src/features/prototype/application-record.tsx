@@ -4,6 +4,7 @@ import { ProcessTimeline } from "@/components/process-timeline";
 import { RecordSheet } from "@/components/record-sheet";
 import { CvAttachment } from "./cv-attachment";
 import { MatchScore } from "./match-score";
+import { ContributionRecord } from "./contribution-record";
 import { stageLabels, type Application, type Stage } from "./model";
 
 type RecordEvent = { stage: Stage; at: string; note?: string };
@@ -24,7 +25,15 @@ export function ApplicationRecord({
 }: {
   application: Pick<
     Application,
-    "candidateId" | "candidateName" | "jobTitle" | "stage" | "answer" | "cv" | "score" | "summary"
+    | "candidateId"
+    | "candidateName"
+    | "jobTitle"
+    | "stage"
+    | "answer"
+    | "cv"
+    | "score"
+    | "summary"
+    | "contribution"
   >;
   companyName: string;
   audience: "candidate" | "employer";
@@ -93,6 +102,17 @@ export function ApplicationRecord({
                 </>
               ),
             },
+            ...(application.contribution?.length
+              ? [
+                  {
+                    value: "contribution",
+                    label: "Moja część",
+                    content: (
+                      <ContributionRecord entries={application.contribution} audience={audience} />
+                    ),
+                  },
+                ]
+              : []),
           ]}
           footer={footer}
         >

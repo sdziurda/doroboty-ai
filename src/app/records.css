@@ -337,3 +337,59 @@
   border-radius: 10px;
   background: var(--gui-canvas);
 }
+
+/* "Moja część" record tab: per-requirement summary and full answers. */
+.contribution-disclaimer {
+  margin-bottom: 18px;
+}
+.contribution-record {
+  display: grid;
+  gap: 26px;
+  list-style: none;
+  padding: 0;
+}
+.contribution-record-item {
+  padding-top: 20px;
+  border-top: 1px solid #d8d5d1;
+}
+.contribution-record-item h4 {
+  font-size: 18px;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+.contribution-summary {
+  display: grid;
+  gap: 12px;
+}
+.contribution-summary dt {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.contribution-summary dd ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  list-style: disc;
+}
+.record-reading .contribution-summary dd :is(p, li) {
+  font-size: 15px;
+  line-height: 1.65;
+}
+.contribution-answers {
+  margin-top: 14px;
+}
+.contribution-answers summary {
+  cursor: pointer;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.record-reading .contribution-answers p {
+  margin-top: 10px;
+  font-size: 15px;
+}
+.record-reading p.contribution-disclaimer {
+  font-size: 13px;
+  line-height: 1.6;
+}

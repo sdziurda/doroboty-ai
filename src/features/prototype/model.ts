@@ -2,6 +2,14 @@ import { z } from "zod";
 import marketplace from "./data/marketplace.json" with { type: "json" };
 import people from "./data/people.json" with { type: "json" };
 import type { JobWithCompany } from "@/features/jobs/types";
+import {
+  MAX_REQUIREMENTS,
+  MIN_CONTRIBUTION_ANSWER_LENGTH,
+  MIN_FOLLOW_UP_ANSWER_LENGTH,
+  MIN_REQUIREMENTS,
+  followUpQuestions,
+  questionForRequirement,
+} from "./contribution";
 
 const id = z
   .string()
@@ -11,6 +19,26 @@ const id = z
 const shortText = z.string().trim().min(1).max(200);
 const text = z.string().trim().max(12000);
 export const MIN_APPLICATION_ANSWER_LENGTH = 20;
+const roleRequirementSchema = z.object({
+  id,
+  requirement: z.string().trim().min(10).max(300),
+  question: z.string().trim().min(10).max(600),
+});
+const contributionEntrySchema = z.object({
+  requirementId: id,
+  requirement: z.string().trim().min(10).max(300),
+  question: z.string().trim().min(10).max(600),
+  answer: z.string().trim().min(MIN_CONTRIBUTION_ANSWER_LENGTH).max(4000),
+  followUpQuestion: z.string().trim().min(10).max(600),
+  followUpAnswer: z.string().trim().min(MIN_FOLLOW_UP_ANSWER_LENGTH).max(4000),
+});
+const contributionDraftSchema = z.object({
+  requirementId: id,
+  answer: z.string().max(4000),
+  followUpQuestion: z.string().max(600),
+  followUpAnswer: z.string().max(4000),
+});
+export type ContributionDraft = z.infer<typeof contributionDraftSchema>;
 const companySchema = z.object({
   id,
   slug: id,
@@ -53,6 +81,11 @@ export const jobSchema = z
     verificationStatus: z.enum(["unverified", "editorial", "employer_verified"]),
     sourceBrief: text.optional(),
     generatedDescription: text.optional(),
+    roleRequirements: z
+      .array(roleRequirementSchema)
+      .min(MIN_REQUIREMENTS)
+      .max(MAX_REQUIREMENTS)
+      .optional(),
   })
   .refine(
     (job) =>
@@ -117,6 +150,7 @@ const applicationSchema = z.object({
   generatedAnswer: text,
   score: z.number().int().min(0).max(100),
   summary: text,
+  contribution: z.array(contributionEntrySchema).min(1).max(MAX_REQUIREMENTS).optional(),
   stage: z.enum(stages),
   events: z
     .array(z.object({ stage: z.enum(stages), at: z.iso.datetime(), note: text }))
@@ -129,6 +163,7 @@ const draftSchema = z.object({
   notes: text,
   generated: text,
   answer: text,
+  contribution: z.array(contributionDraftSchema).max(MAX_REQUIREMENTS).optional(),
 });
 export const stateSchema = z
   .object({
@@ -201,7 +236,14 @@ export type Action =
   | { type: "select_person"; id: string | null }
   | { type: "profile"; value: z.infer<typeof profileSchema> }
   | { type: "toggle_saved"; jobId: string }
-  | { type: "draft"; jobId: string; notes: string; generated: string; answer: string }
+  | {
+      type: "draft";
+      jobId: string;
+      notes: string;
+      generated: string;
+      answer: string;
+      contribution?: ContributionDraft[];
+    }
   | {
       type: "submit";
       jobId: string;
@@ -209,12 +251,50 @@ export type Action =
       generated: string;
       answer: string;
       consent: boolean;
+      contribution?: ContributionDraft[];
     }
   | { type: "stage"; applicationId: string; stage: Stage; note: string }
   | { type: "withdraw"; applicationId: string }
   | { type: "publish"; job: z.infer<typeof jobSchema> }
   | { type: "company"; name: string; description: string };
 
+const exampleRequirements = [
+  [
+    "requirement-pilot",
+    "Samodzielnie zaplanować i przeprowadzić pilotaż funkcji AI z użytkownikami",
+  ],
+  [
+    "requirement-scope",
+    "Na podstawie danych i wywiadów zdecydować, co wchodzi do zakresu, a co nie",
+  ],
+  [
+    "requirement-measure",
+    "Ustalić, jak zmierzymy, że funkcja AI działa, i sprawdzić to po wdrożeniu",
+  ],
+] as const;
+// Marek's prepared answers deliberately mix a concrete own part with team-level descriptions.
+const exampleContribution = [
+  {
+    answer:
+      "Nasz zespół uruchomił pilotaż asystenta do kategoryzacji zgłoszeń w dziale obsługi klienta. Pilotaż trwał sześć tygodni i objął dwa zespoły.",
+    followUpQuestion: followUpQuestions.own,
+    followUpAnswer:
+      "Przygotowałem scenariusze rozmów z konsultantami i sam prowadziłem cotygodniowe przeglądy błędnych kategorii.",
+  },
+  {
+    answer:
+      "Zakres ustalaliśmy wspólnie z zespołem na warsztatach. Wybraliśmy trzy najczęstsze typy zgłoszeń.",
+    followUpQuestion: followUpQuestions.own,
+    followUpAnswer: "Prowadziłem warsztaty.",
+  },
+  {
+    answer:
+      "Zaproponowałem miarę: odsetek zgłoszeń przypisanych do właściwej kategorii bez poprawki konsultanta. Sam porównałem próbkę 200 zgłoszeń przed i po pilotażu.",
+    followUpQuestion: followUpQuestions.rejection,
+    followUpAnswer:
+      "Odrzuciłem mierzenie samego czasu odpowiedzi, bo spadał także wtedy, gdy kategorie były błędne.",
+  },
+];
 export function initialState(): State {
   const state = stateSchema.parse({
     version: 1,
@@ -227,6 +307,11 @@ export function initialState(): State {
   });
   const bob = state.people.find((x) => x.id === "candidate-marek")!;
   const job = state.jobs[0];
+  job.roleRequirements = exampleRequirements.map(([requirementId, requirement]) => ({
+    id: requirementId,
+    requirement,
+    question: questionForRequirement(requirement),
+  }));
   state.applications.push({
     id: "application-example",
     candidateId: bob.id,
@@ -241,6 +326,12 @@ export function initialState(): State {
     generatedAnswer: "",
     score: bob.exampleScore,
     summary: bob.exampleSummary,
+    contribution: job.roleRequirements.map((requirement, index) => ({
+      requirementId: requirement.id,
+      requirement: requirement.requirement,
+      question: requirement.question,
+      ...exampleContribution[index],
+    })),
     stage: "submitted",
     events: [{ stage: "submitted", at: "2026-11-02T09:00:00.000Z", note: "" }],
   });
@@ -298,6 +389,29 @@ export function transition(
     if (!action.consent) fail("Zatwierdź treść i zgodę na przesłanie aplikacji.");
     if (s.applications.some((x) => x.candidateId === p.id && x.jobId === job.id))
       fail("Aplikacja na tę ofertę została już wysłana.");
+    let contribution: z.infer<typeof contributionEntrySchema>[] | undefined;
+    if (action.contribution) {
+      const requirements = job.roleRequirements ?? [];
+      const byId = new Map(action.contribution.map((x) => [x.requirementId, x]));
+      if (!requirements.length || byId.size !== requirements.length)
+        fail("Odpowiedz na wszystkie pytania w sekcji „Moja część” albo usuń odpowiedzi.");
+      contribution = requirements.map((requirement) => {
+        const entry = byId.get(requirement.id);
+        const parsed = contributionEntrySchema.safeParse({
+          requirementId: requirement.id,
+          requirement: requirement.requirement,
+          question: requirement.question,
+          answer: entry?.answer,
+          followUpQuestion: entry?.followUpQuestion,
+          followUpAnswer: entry?.followUpAnswer,
+        });
+        if (!parsed.success)
+          return fail(
+            "Odpowiedz na wszystkie pytania i dopytania w sekcji „Moja część” albo usuń odpowiedzi.",
+          );
+        return parsed.data;
+      });
+    }
     s.applications.push(
       applicationSchema.parse({
         id: newId,
@@ -312,6 +426,7 @@ export function transition(
         generatedAnswer: action.generated,
         score: p.exampleScore,
         summary: p.exampleSummary,
+        contribution,
         stage: "submitted",
         events: [{ stage: "submitted", at: now, note: "" }],
       }),

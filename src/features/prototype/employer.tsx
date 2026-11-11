@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,12 @@ import { currentPerson, jobSchema } from "./model";
 import { usePrototype } from "./store";
 import { Field } from "./workspace";
 import { Empty, NotFound, PageTitle } from "./shell";
+import { requirementSuggestions, type JobFunction } from "./contribution";
+import {
+  RoleRequirementsEditor,
+  finalizeRequirements,
+  type RequirementDraft,
+} from "./role-requirements-editor";
 
 export function EmployerJobs() {
   const { state } = usePrototype();
@@ -76,14 +82,23 @@ export function EmployerJobEditor() {
   const [description, setDescription] = useState(existing?.description ?? "");
   const [source, setSource] = useState(existing?.sourceBrief ?? "");
   const [generated, setGenerated] = useState(existing?.generatedDescription ?? "");
+  const [requirements, setRequirements] = useState<RequirementDraft[]>(
+    existing?.roleRequirements ?? [],
+  );
   const [approved, setApproved] = useState(false);
   const [error, setError] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
   if (id !== "nowa" && !existing) return <NotFound />;
   function publish(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     if (!approved) {
       setError("Zatwierdź opis przed publikacją.");
+      return;
+    }
+    const finalized = finalizeRequirements(requirements);
+    if ("error" in finalized) {
+      setError(finalized.error);
       return;
     }
     const data = new FormData(e.currentTarget);
@@ -97,6 +112,7 @@ export function EmployerJobEditor() {
       description,
       sourceBrief: source,
       generatedDescription: generated,
+      roleRequirements: finalized.requirements,
       category: data.get("category"),
       function: data.get("function"),
       remoteStatus: data.get("remoteStatus"),
@@ -138,7 +154,7 @@ export function EmployerJobEditor() {
   return (
     <>
       <PageTitle>{existing ? "Edytuj ofertę" : "Nowa oferta"}</PageTitle>
-      <form className="prototype-form" onSubmit={publish}>
+      <form ref={formRef} className="prototype-form" onSubmit={publish}>
         <Field label="Nazwa stanowiska">
           <Input
             required
@@ -252,6 +268,21 @@ export function EmployerJobEditor() {
             <Input name="salaryMax" type="number" min="0" defaultValue={existing?.salaryMax} />
           </Field>
         </div>
+        <RoleRequirementsEditor
+          value={requirements}
+          onChange={(next) => {
+            setRequirements(next);
+            setApproved(false);
+          }}
+          suggest={() => {
+            const selected = formRef.current
+              ? new FormData(formRef.current).get("function")
+              : existing?.function;
+            return (
+              requirementSuggestions[selected as JobFunction] ?? requirementSuggestions.engineering
+            );
+          }}
+        />
         <label className="flex items-start gap-3">
           <Checkbox
             checked={approved}

@@ -393,3 +393,13 @@
   font-size: 13px;
   line-height: 1.6;
 }
+.contribution-subhead {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.contribution-recording {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}

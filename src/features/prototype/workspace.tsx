@@ -16,8 +16,11 @@ import { CvAttachment } from "./cv-attachment";
 import { MatchScore } from "./match-score";
 import { RecruitingApplication } from "./recruiting-application";
 import { CandidateApplication } from "./candidate-application";
-import { ContributionSection, contributionComplete } from "./contribution-section";
-import { MIN_CONTRIBUTION_ANSWER_LENGTH } from "./contribution";
+import {
+  ContributionSection,
+  contributionComplete,
+  firstIncompleteControl,
+} from "./contribution-section";
 import type { ContributionDraft } from "./model";
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -252,6 +255,8 @@ export function ApplyPage() {
               answer: "",
               followUpQuestion: "",
               followUpAnswer: "",
+              answerAudioId: "",
+              followUpAudioId: "",
             },
         )
       : null,
@@ -295,13 +300,8 @@ export function ApplyPage() {
       return;
     }
     if (contribution && !contributionComplete(contribution)) {
-      const index = contribution.findIndex((entry) => !contributionComplete([entry]));
-      const entry = contribution[index];
-      const target =
-        entry.followUpQuestion && entry.answer.trim().length >= MIN_CONTRIBUTION_ANSWER_LENGTH
-          ? `contribution-follow-${index}`
-          : `contribution-answer-${index}`;
-      document.getElementById(target)?.focus();
+      const target = firstIncompleteControl(contribution);
+      if (target) document.getElementById(target)?.focus();
       return;
     }
     if (!consent) {

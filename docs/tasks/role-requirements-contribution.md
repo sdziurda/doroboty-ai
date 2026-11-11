@@ -39,3 +39,12 @@ If recruiters cannot tell from the summary which candidate did the project perso
 ## Separate review
 
 Reviewed the diff for schema compatibility, focus and error handling on incomplete sections, simulation labelling, absence of scores and private-text logging, and FEATURES.md consistency. Fixed one rule bug found in review/tests ("zespołem" was read as a first-person verb). No merge, publishing or human approval is claimed.
+
+## Change: voice-only answers with a 3-minute limit (2026-11-11)
+
+Participant decision after the first version: "Moja część" answers are recorded only (no typing), each answer and follow-up is limited to 3 minutes, and the employer gets the original recording, its transcript and the AI summary.
+
+- `VoiceAnswer` records with MediaRecorder and runs browser speech recognition (pl-PL) in parallel for the transcript; timer, automatic stop at 3:00, re-recording replaces the previous clip. The follow-up appears automatically after a transcript of at least 20 characters; a changed follow-up question clears the earlier follow-up recording.
+- Clips are stored in IndexedDB (`audio-store.ts`); the scenario keeps clip ids (`answerAudioId`, `followUpAudioId`) and transcripts. Submission requires both clips per requirement. Clips are not part of JSON export/import, and the player says so when a clip is missing. Removed the text dictation button.
+- Employer tab: recordings, transcripts and "Podsumowanie AI (symulacja)". Marek's prepared example has no recordings and is labelled as text-only example data.
+- Checks: types, lint, formatting and 36 unit tests pass (submission without recordings is rejected). In Chrome the voice-only section renders with record buttons and the 3:00 limit; an actual recording needs the participant's microphone permission and was not performed by the agent. Browser journeys updated to avoid the microphone; still not run (no Playwright Chromium).

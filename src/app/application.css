@@ -361,3 +361,37 @@
   align-items: center;
   gap: 8px;
 }
+.voice-answer {
+  display: grid;
+  gap: 10px;
+}
+.voice-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.voice-timer {
+  font-size: 13px;
+  color: var(--gui-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.voice-live,
+.voice-transcript {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.voice-live {
+  color: var(--gui-text-muted);
+}
+.voice-transcript span {
+  font-weight: 700;
+}
+.voice-result {
+  display: grid;
+  gap: 8px;
+}
+.voice-player {
+  width: 100%;
+  max-width: 420px;
+}

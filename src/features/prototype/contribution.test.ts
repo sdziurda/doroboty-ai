@@ -86,6 +86,8 @@ describe("role requirements and contribution in the scenario", () => {
       answer: "Sama przygotowałam plan pilotażu i porównałam wyniki.",
       followUpQuestion: followUpQuestions.rejection,
       followUpAnswer: "Odrzuciłam mierzenie samego czasu odpowiedzi.",
+      answerAudioId: `clip-${requirement.id}-answer`,
+      followUpAudioId: `clip-${requirement.id}-follow`,
     }));
     const next = transition(
       s,
@@ -102,6 +104,23 @@ describe("role requirements and contribution in the scenario", () => {
       "application-anna",
     );
     const app = next.applications.find((x) => x.id === "application-anna")!;
+    expect(app.contribution?.[0].answerAudioId).toBe(`clip-${job.roleRequirements![0].id}-answer`);
+    const withoutAudio = contribution.map((entry) => ({ ...entry, followUpAudioId: "" }));
+    expect(() =>
+      transition(
+        s,
+        {
+          type: "submit",
+          jobId: job.id,
+          notes: "",
+          generated: "",
+          answer: "Approved application with sufficient context.",
+          consent: true,
+          contribution: withoutAudio,
+        },
+        time,
+      ),
+    ).toThrow("Nagraj");
     expect(app.contribution?.map((x) => x.question)).toEqual(
       job.roleRequirements!.map((x) => x.question),
     );
@@ -123,6 +142,8 @@ describe("role requirements and contribution in the scenario", () => {
         answer: "Sama przygotowałam plan pilotażu.",
         followUpQuestion: followUpQuestions.verification,
         followUpAnswer: "",
+        answerAudioId: "clip-partial",
+        followUpAudioId: "",
       },
     ];
     expect(() => transition(s, { ...base, contribution: partial }, time)).toThrow("Moja część");
@@ -140,6 +161,8 @@ describe("role requirements and contribution in the scenario", () => {
         answer: "Szkic",
         followUpQuestion: "",
         followUpAnswer: "",
+        answerAudioId: "clip-draft",
+        followUpAudioId: "",
       },
     ];
     const next = transition(s, {

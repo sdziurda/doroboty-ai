@@ -31,12 +31,17 @@ const contributionEntrySchema = z.object({
   answer: z.string().trim().min(MIN_CONTRIBUTION_ANSWER_LENGTH).max(4000),
   followUpQuestion: z.string().trim().min(10).max(600),
   followUpAnswer: z.string().trim().min(MIN_FOLLOW_UP_ANSWER_LENGTH).max(4000),
+  // Recordings live in browser IndexedDB; prepared example answers have none.
+  answerAudioId: id.optional(),
+  followUpAudioId: id.optional(),
 });
 const contributionDraftSchema = z.object({
   requirementId: id,
   answer: z.string().max(4000),
   followUpQuestion: z.string().max(600),
   followUpAnswer: z.string().max(4000),
+  answerAudioId: z.string().max(100).default(""),
+  followUpAudioId: z.string().max(100).default(""),
 });
 export type ContributionDraft = z.infer<typeof contributionDraftSchema>;
 const companySchema = z.object({
@@ -404,10 +409,12 @@ export function transition(
           answer: entry?.answer,
           followUpQuestion: entry?.followUpQuestion,
           followUpAnswer: entry?.followUpAnswer,
+          answerAudioId: entry?.answerAudioId,
+          followUpAudioId: entry?.followUpAudioId,
         });
-        if (!parsed.success)
+        if (!parsed.success || !parsed.data.answerAudioId || !parsed.data.followUpAudioId)
           return fail(
-            "Odpowiedz na wszystkie pytania i dopytania w sekcji „Moja część” albo usuń odpowiedzi.",
+            "Nagraj odpowiedzi na wszystkie pytania i dopytania w sekcji „Moja część” albo usuń odpowiedzi.",
           );
         return parsed.data;
       });

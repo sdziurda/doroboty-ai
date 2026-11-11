@@ -8,6 +8,8 @@ export const MIN_REQUIREMENTS = 2;
 export const MAX_REQUIREMENTS = 5;
 export const MIN_CONTRIBUTION_ANSWER_LENGTH = 20;
 export const MIN_FOLLOW_UP_ANSWER_LENGTH = 10;
+/** Each recorded answer (question or follow-up) is limited to 3 minutes. */
+export const MAX_RECORDING_SECONDS = 180;
 
 export type JobFunction =
   "product" | "engineering" | "data" | "design" | "marketing" | "operations";
@@ -148,6 +150,8 @@ export type ContributionEntry = {
   answer: string;
   followUpQuestion: string;
   followUpAnswer: string;
+  answerAudioId?: string;
+  followUpAudioId?: string;
 };
 
 export type ContributionSummary = {

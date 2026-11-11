@@ -1,28 +1,40 @@
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
+  MAX_RECORDING_SECONDS,
   MIN_CONTRIBUTION_ANSWER_LENGTH,
   MIN_FOLLOW_UP_ANSWER_LENGTH,
   followUpFor,
 } from "./contribution";
-import { DictationButton } from "./dictation-button";
+import { deleteClip } from "./audio-store";
 import type { ContributionDraft } from "./model";
+import { VoiceAnswer, recordingSupported } from "./voice-answer";
 
 type Requirement = { id: string; requirement: string; question: string };
 
+const answerReady = (entry: ContributionDraft) =>
+  !!entry.answerAudioId && entry.answer.trim().length >= MIN_CONTRIBUTION_ANSWER_LENGTH;
+const followUpReady = (entry: ContributionDraft) =>
+  !!entry.followUpAudioId && entry.followUpAnswer.trim().length >= MIN_FOLLOW_UP_ANSWER_LENGTH;
+
 export function contributionComplete(entries: ContributionDraft[]) {
   return entries.every(
-    (entry) =>
-      entry.answer.trim().length >= MIN_CONTRIBUTION_ANSWER_LENGTH &&
-      entry.followUpQuestion.trim().length > 0 &&
-      entry.followUpAnswer.trim().length >= MIN_FOLLOW_UP_ANSWER_LENGTH,
+    (entry) => answerReady(entry) && !!entry.followUpQuestion && followUpReady(entry),
   );
 }
 
-const appendText = (current: string, text: string) =>
-  current.trim() ? `${current} ${text}` : text;
+/** Id of the first recording control that still needs an answer, for focus on submit. */
+export function firstIncompleteControl(entries: ContributionDraft[]) {
+  const index = entries.findIndex((entry) => !contributionComplete([entry]));
+  if (index < 0) return null;
+  const entry = entries[index];
+  return answerReady(entry) && entry.followUpQuestion
+    ? `contribution-follow-${index}`
+    : `contribution-answer-${index}`;
+}
 
-/** Candidate's optional "Moja część" answers for a job with role requirements. */
+const minutes = MAX_RECORDING_SECONDS / 60;
+
+/** Candidate's optional, voice-only "Moja część" answers for a job with role requirements. */
 export function ContributionSection({
   requirements,
   value,
@@ -36,6 +48,7 @@ export function ContributionSection({
   disabled?: boolean;
   showErrors?: boolean;
 }) {
+  const supported = recordingSupported();
   const update = (index: number, patch: Partial<ContributionDraft>) =>
     value && onChange(value.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)));
   return (
@@ -45,15 +58,23 @@ export function ContributionSection({
     >
       <h3 id="contribution-title">Moja część</h3>
       <p className="application-help">
-        Rekruter przygotował {requirements.length} pytania o wymagania tej roli. Opowiedz, co w
-        podobnym projekcie zrobiłaś lub zrobiłeś osobiście, a co zespół. Sekcja jest opcjonalna.
+        Rekruter przygotował {requirements.length} pytania o wymagania tej roli. Odpowiadasz
+        wyłącznie głosowo: na każde pytanie i dopytanie masz do {minutes} minut nagrania. Opowiedz,
+        co w podobnym projekcie zrobiłaś lub zrobiłeś osobiście, a co zespół. Rekruter zobaczy
+        nagranie, jego zapis i podsumowanie. Sekcja jest opcjonalna.
       </p>
+      {!supported && (
+        <p className="prototype-notice">
+          Ta przeglądarka nie obsługuje nagrywania z automatycznym zapisem. Otwórz prototyp w
+          Chrome, aby odpowiedzieć w tej sekcji.
+        </p>
+      )}
       {!value ? (
         <div className="record-actions">
           <Button
             type="button"
             variant="outline"
-            disabled={disabled}
+            disabled={disabled || !supported}
             onClick={() =>
               onChange(
                 requirements.map((requirement) => ({
@@ -61,6 +82,8 @@ export function ContributionSection({
                   answer: "",
                   followUpQuestion: "",
                   followUpAnswer: "",
+                  answerAudioId: "",
+                  followUpAudioId: "",
                 })),
               )
             }
@@ -74,14 +97,8 @@ export function ContributionSection({
             {requirements.map((requirement, index) => {
               const entry = value[index];
               if (!entry) return null;
-              const answerReady = entry.answer.trim().length >= MIN_CONTRIBUTION_ANSWER_LENGTH;
-              const incomplete =
-                showErrors &&
-                !(
-                  answerReady &&
-                  entry.followUpQuestion &&
-                  entry.followUpAnswer.trim().length >= MIN_FOLLOW_UP_ANSWER_LENGTH
-                );
+              const ready = answerReady(entry);
+              const incomplete = showErrors && !contributionComplete([entry]);
               const answerId = `contribution-answer-${index}`;
               const followId = `contribution-follow-${index}`;
               return (
@@ -90,80 +107,59 @@ export function ContributionSection({
                     <span className="contribution-index">Pytanie {index + 1}.</span>{" "}
                     {requirement.question}
                   </p>
-                  <label className="field" htmlFor={answerId}>
-                    <span>Twoja odpowiedź</span>
-                  </label>
-                  <Textarea
+                  <VoiceAnswer
                     id={answerId}
-                    rows={4}
-                    maxLength={4000}
+                    label={`odpowiedź na pytanie ${index + 1}`}
+                    describedBy={`${answerId}-question`}
                     disabled={disabled}
-                    aria-describedby={`${answerId}-question`}
-                    aria-invalid={(incomplete && !answerReady) || undefined}
-                    value={entry.answer}
-                    onChange={(e) => update(index, { answer: e.target.value })}
+                    invalid={incomplete && !ready}
+                    value={{ audioId: entry.answerAudioId, transcript: entry.answer }}
+                    onChange={({ audioId, transcript }) => {
+                      const followUpQuestion =
+                        transcript.trim().length >= MIN_CONTRIBUTION_ANSWER_LENGTH
+                          ? followUpFor(transcript)
+                          : "";
+                      // A different follow-up question invalidates the earlier follow-up answer.
+                      const changed = followUpQuestion !== entry.followUpQuestion;
+                      if (changed && entry.followUpAudioId)
+                        void deleteClip(entry.followUpAudioId).catch(() => {});
+                      update(index, {
+                        answerAudioId: audioId,
+                        answer: transcript,
+                        followUpQuestion,
+                        ...(changed ? { followUpAudioId: "", followUpAnswer: "" } : {}),
+                      });
+                    }}
                   />
-                  <div className="contribution-tools">
-                    <DictationButton
-                      disabled={disabled}
-                      label={`odpowiedź na pytanie ${index + 1}`}
-                      onText={(text) =>
-                        update(index, { answer: appendText(value[index].answer, text) })
-                      }
-                    />
-                    {!entry.followUpQuestion && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={disabled || !answerReady}
-                        onClick={() =>
-                          update(index, { followUpQuestion: followUpFor(entry.answer) })
-                        }
-                      >
-                        Dalej: dopytanie
-                      </Button>
-                    )}
-                  </div>
-                  {!entry.followUpQuestion && !answerReady && (
+                  {entry.answerAudioId && !ready && (
                     <p className="application-help">
-                      Minimum {MIN_CONTRIBUTION_ANSWER_LENGTH} znaków, potem pojawi się dopytanie.
+                      Zapis jest za krótki (minimum {MIN_CONTRIBUTION_ANSWER_LENGTH} znaków). Nagraj
+                      dłuższą odpowiedź, wtedy pojawi się dopytanie.
                     </p>
                   )}
-                  {entry.followUpQuestion && (
+                  {ready && entry.followUpQuestion && (
                     <div className="contribution-followup">
                       <p className="contribution-question" id={`${followId}-question`}>
                         <span className="contribution-index">Dopytanie (symulacja AI).</span>{" "}
                         {entry.followUpQuestion}
                       </p>
-                      <label className="field" htmlFor={followId}>
-                        <span>Odpowiedź na dopytanie</span>
-                      </label>
-                      <Textarea
+                      <VoiceAnswer
                         id={followId}
-                        rows={3}
-                        maxLength={4000}
+                        label={`odpowiedź na dopytanie ${index + 1}`}
+                        describedBy={`${followId}-question`}
                         disabled={disabled}
-                        aria-describedby={`${followId}-question`}
-                        aria-invalid={incomplete || undefined}
-                        value={entry.followUpAnswer}
-                        onChange={(e) => update(index, { followUpAnswer: e.target.value })}
+                        invalid={incomplete}
+                        value={{ audioId: entry.followUpAudioId, transcript: entry.followUpAnswer }}
+                        onChange={({ audioId, transcript }) =>
+                          update(index, { followUpAudioId: audioId, followUpAnswer: transcript })
+                        }
                       />
-                      <div className="contribution-tools">
-                        <DictationButton
-                          disabled={disabled}
-                          label={`odpowiedź na dopytanie ${index + 1}`}
-                          onText={(text) =>
-                            update(index, {
-                              followUpAnswer: appendText(value[index].followUpAnswer, text),
-                            })
-                          }
-                        />
-                      </div>
                     </div>
                   )}
                   {incomplete && (
                     <p role="alert" className="error-message">
-                      Odpowiedz na pytanie {index + 1} i dopytanie albo usuń odpowiedzi z sekcji.
+                      Nagraj odpowiedź na pytanie {index + 1} i dopytanie albo usuń odpowiedzi z
+                      sekcji.
                     </p>
                   )}
                 </li>
@@ -171,9 +167,9 @@ export function ContributionSection({
             })}
           </ol>
           <p className="application-help">
-            Dopytania wybierają proste reguły na podstawie Twojej odpowiedzi (symulacja AI, bez
-            modelu). Dyktowanie korzysta z rozpoznawania mowy przeglądarki, które w Chrome może
-            przesyłać dźwięk do usługi Google. Używaj tylko przykładowych danych.
+            Zapis tworzy rozpoznawanie mowy przeglądarki, które w Chrome może przesyłać dźwięk do
+            usługi Google. Dopytania wybierają proste reguły na podstawie zapisu (symulacja AI, bez
+            modelu). Nagrania zostają w tej przeglądarce. Używaj tylko przykładowych danych.
           </p>
           <div className="record-actions">
             <Button
@@ -181,7 +177,12 @@ export function ContributionSection({
               variant="ghost"
               size="sm"
               disabled={disabled}
-              onClick={() => onChange(null)}
+              onClick={() => {
+                for (const entry of value)
+                  for (const clip of [entry.answerAudioId, entry.followUpAudioId])
+                    if (clip) void deleteClip(clip).catch(() => {});
+                onChange(null);
+              }}
             >
               Usuń odpowiedzi z sekcji „Moja część”
             </Button>

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { initialState, transition, type Action, type State } from "./model";
 import { parseState, readState, saveState, type StoragePort } from "./storage";
+import { clearClips } from "./audio-store";
 function browserStorage(): StoragePort | null {
   try {
     return window.localStorage;
@@ -63,7 +64,11 @@ function useStore() {
     run,
     importState,
     clearError: () => setError(""),
-    reset: () => commit(initialState(), true),
+    reset: () => {
+      commit(initialState(), true);
+      // Recordings live outside the scenario save; a reset removes them too.
+      void clearClips().catch(() => {});
+    },
   };
 }
 type Store = ReturnType<typeof useStore>;

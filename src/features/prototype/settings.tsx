@@ -129,8 +129,14 @@ export function PrivacyPage() {
           scenariusz, w tym notatki.
         </p>
         <p>
-          Możesz usunąć zmiany przyciskiem „Resetuj scenariusz” w ustawieniach lub wyczyścić dane
-          witryny w przeglądarce. Hosting może prowadzić własne logi dostępu.
+          Nagrania odpowiedzi w sekcji „Moja część” również zostają w tej przeglądarce i nie
+          trafiają do eksportu. Zapis tekstowy tworzy rozpoznawanie mowy wbudowane w przeglądarkę: w
+          Chrome dźwięk jest w tym celu przesyłany do usługi Google. Nagrywaj tylko przykładowe
+          odpowiedzi, bez danych osobowych.
+        </p>
+        <p>
+          Możesz usunąć zmiany i nagrania przyciskiem „Resetuj scenariusz” w ustawieniach lub
+          wyczyścić dane witryny w przeglądarce. Hosting może prowadzić własne logi dostępu.
         </p>
       </div>
     </section>

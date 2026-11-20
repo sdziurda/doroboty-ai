@@ -42,3 +42,8 @@ export async function loadClip(id: string): Promise<Blob | undefined> {
 export async function deleteClip(id: string) {
   await run("readwrite", (store) => store.delete(id));
 }
+
+/** Removes every recording kept in this browser (used by "Resetuj scenariusz"). */
+export async function clearClips() {
+  await run("readwrite", (store) => store.clear());
+}

@@ -1,10 +1,12 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { STORAGE_KEY } from "@/features/prototype/storage";
+import { reportError } from "@/lib/analytics";
 
 /**
  * Last-resort screen for unexpected rendering errors, so a crash never leaves a blank page.
- * The error goes to the browser console; remote error collection is added with analytics.
+ * The error goes to the browser console and, when analytics is configured, to PostHog
+ * error tracking (message scrubbed, no component text).
  */
 export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -15,6 +17,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("DoRoboty.ai: nieoczekiwany błąd", error, info.componentStack);
+    reportError(error);
   }
 
   private restoreSample = () => {

@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+import { track } from "@/lib/analytics";
 import { summarizeContribution, type ContributionEntry } from "./contribution";
 import { ClipPlayer } from "./clip-player";
 
@@ -10,6 +12,15 @@ export function ContributionRecord({
   audience: "candidate" | "employer";
 }) {
   const employer = audience === "employer";
+  const reported = useRef(false);
+  useEffect(() => {
+    if (!employer || reported.current) return;
+    reported.current = true;
+    track({
+      name: "contribution_summary_opened",
+      props: { contribution_answers: entries.length },
+    });
+  }, [employer, entries.length]);
   return (
     <>
       <h3>{employer ? "Moja część — zestawienie według wymagań" : "Twoje odpowiedzi"}</h3>

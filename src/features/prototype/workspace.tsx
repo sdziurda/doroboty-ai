@@ -4,6 +4,7 @@ import { CheckCircle2, FileText } from "lucide-react";
 import { ConfettiBurst, type ConfettiOrigin } from "@/components/confetti-burst";
 import { BackLink } from "@/components/back-link";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { NO_CAPTURE, track } from "@/lib/analytics";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -321,6 +322,10 @@ export function ApplyPage() {
     ) {
       submittedOnce.current = true;
       setSubmitted(true);
+      track({
+        name: "application_submitted",
+        props: { contribution_answers: contribution?.length ?? 0 },
+      });
       if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         const rect = sendButton.current?.getBoundingClientRect();
         if (rect)
@@ -340,7 +345,7 @@ export function ApplyPage() {
         <form
           noValidate
           onSubmit={submit}
-          className="record-sheet application-form"
+          className={`record-sheet application-form ${NO_CAPTURE}`}
           aria-labelledby="application-form-title"
         >
           <header className="application-form-intro">
@@ -491,7 +496,7 @@ export function ApplicationsPage({ employer = false }: { employer?: boolean }) {
       <Field label={employer ? "Szukaj kandydata lub oferty" : "Szukaj oferty"}>
         <Input value={query} onChange={(e) => setQuery(e.target.value)} />
       </Field>
-      <div className="mt-6 space-y-4">
+      <div className={employer ? `mt-6 space-y-4 ${NO_CAPTURE}` : "mt-6 space-y-4"}>
         {applications.length ? (
           applications.map((a) => (
             <article className="prototype-panel" key={a.id}>

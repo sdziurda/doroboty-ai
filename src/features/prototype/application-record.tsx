@@ -1,5 +1,6 @@
 import type { ReactNode, Ref } from "react";
 import { BackLink } from "@/components/back-link";
+import { NO_CAPTURE } from "@/lib/analytics";
 import { ProcessTimeline } from "@/components/process-timeline";
 import { RecordSheet } from "@/components/record-sheet";
 import { CvAttachment } from "./cv-attachment";
@@ -73,7 +74,7 @@ export function ApplicationRecord({
           )}
         </div>
       </header>
-      <div className="recruiting-layout">
+      <div className={`recruiting-layout ${NO_CAPTURE}`}>
         <RecordSheet
           label={candidate ? "Twoja wysłana aplikacja" : "Materiały kandydata"}
           sections={[

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, RotateCcw, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NO_CAPTURE, track } from "@/lib/analytics";
 import { deleteClip, saveClip } from "./audio-store";
 import { MAX_RECORDING_SECONDS } from "./contribution";
 import { ClipPlayer } from "./clip-player";
@@ -73,6 +74,7 @@ export function VoiceAnswer({
   const recorder = useRef<MediaRecorder | null>(null);
   const recognition = useRef<Recognition | null>(null);
   const stream = useRef<MediaStream | null>(null);
+  const startedAt = useRef(0);
   const finalText = useRef("");
   const interimText = useRef("");
   const lastError = useRef("");
@@ -125,6 +127,13 @@ export function VoiceAnswer({
         await saveClip(audioId, blob);
         if (latest.current.audioId) await deleteClip(latest.current.audioId).catch(() => {});
         onChange({ audioId, transcript });
+        track({
+          name: "voice_answer_recorded",
+          props: {
+            duration_seconds: Math.round((Date.now() - startedAt.current) / 1000),
+            transcript_ok: transcript.length >= minLength,
+          },
+        });
         if (!transcript)
           setProblem(
             `Nie rozpoznano mowy. ${speechErrors[lastError.current] ?? "Nagraj odpowiedź ponownie, mówiąc wyraźnie i blisko mikrofonu."}`,
@@ -186,6 +195,7 @@ export function VoiceAnswer({
     setElapsed(0);
     setRecording(true);
     const started = Date.now();
+    startedAt.current = started;
     timer.current = window.setInterval(() => {
       const seconds = Math.floor((Date.now() - started) / 1000);
       setElapsed(seconds);
@@ -203,7 +213,12 @@ export function VoiceAnswer({
   const remaining = Math.max(0, MAX_RECORDING_SECONDS - elapsed);
   const final = !!value.audioId && value.transcript.trim().length >= minLength;
   return (
-    <div className="voice-answer" aria-invalid={invalid || undefined} id={id} tabIndex={-1}>
+    <div
+      className={`voice-answer ${NO_CAPTURE}`}
+      aria-invalid={invalid || undefined}
+      id={id}
+      tabIndex={-1}
+    >
       <div className="voice-controls">
         {recording ? (
           <Button

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { NO_CAPTURE } from "@/lib/analytics";
 import {
   MAX_RECORDING_SECONDS,
   MIN_CONTRIBUTION_ANSWER_LENGTH,
@@ -56,7 +57,7 @@ export function ContributionSection({
     value && onChange(value.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)));
   return (
     <section
-      className="application-form-section contribution-section"
+      className={`application-form-section contribution-section ${NO_CAPTURE}`}
       aria-labelledby="contribution-title"
     >
       <h3 id="contribution-title">Moja część</h3>

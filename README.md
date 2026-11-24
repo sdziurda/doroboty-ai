@@ -26,6 +26,8 @@ npm run dev
 
 Open http://127.0.0.1:3001. No environment file, account, database or additional service is required. Package installation requires access to the npm registry.
 
+Optional analytics: set `VITE_POSTHOG_KEY` (PostHog project key, `phc_…`) and optionally `VITE_POSTHOG_HOST` (default `https://eu.i.posthog.com`) in `.env.local` locally or in the hosting environment variables, then rebuild. Without the key the app sends nothing. `.env*` files are git-ignored; never commit the key. Privacy rules are in `src/lib/analytics.ts` and `docs/tasks/posthog-analytics.md`.
+
 Select Anna or Marek as a candidate, Karolina or Tomasz as an employer, or the instructor. Publish a job, apply, switch person and record the employer decision. Changes survive reload in this browser; settings provide export, import and reset. AI and scores simulate prepared scenarios. Use example CVs only.
 
 ## Build and verify

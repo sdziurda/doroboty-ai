@@ -125,8 +125,23 @@ export function PrivacyPage() {
         </p>
         <p>
           Profile, aplikacje i ustawienia pozostają w pamięci tej przeglądarki. Aplikacja nie wysyła
-          ich do bazy, dostawcy AI ani systemu analitycznego. Plik eksportu zawiera cały lokalny
-          scenariusz, w tym notatki.
+          ich do bazy ani dostawcy AI. Plik eksportu zawiera cały lokalny scenariusz, w tym notatki.
+        </p>
+        <h2>Statystyki użycia (PostHog)</h2>
+        <p>
+          Opublikowana wersja liczy anonimowo wejścia na podstrony, kliknięcia przycisków i linków
+          oraz kilka kroków procesu: zapisanie wymagań roli, zakończenie nagrania, wysłanie
+          aplikacji i otwarcie zestawienia „Moja część”. Przy tych krokach zapisujemy tylko liczby,
+          na przykład liczbę wymagań lub długość nagrania w sekundach. Jeśli aplikacja napotka błąd,
+          wysyłamy jego techniczny opis bez cytowanych treści. Dane trafiają do PostHog na serwery w
+          Unii Europejskiej.
+        </p>
+        <p>
+          PostHog nie dostaje treści wpisywanych w pola, odpowiedzi kandydatów, nagrań, zapisu mowy,
+          wymagań roli, notatek ani danych kandydatów: te miejsca są wyłączone ze zbierania. Nie
+          nagrywamy ekranu ani ruchów myszy. Nie używamy ciasteczek ani pamięci przeglądarki do
+          statystyk: anonimowy identyfikator znika po odświeżeniu strony, dlatego nie pokazujemy
+          banera zgody.
         </p>
         <p>
           Nagrania odpowiedzi w sekcji „Moja część” również zostają w tej przeglądarce i nie

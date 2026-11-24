@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { NO_CAPTURE } from "@/lib/analytics";
 import { Textarea } from "@/components/ui/textarea";
 import {
   MAX_REQUIREMENTS,
@@ -27,7 +28,10 @@ export function RoleRequirementsEditor({
   const add = (requirement = "") => ({ id: crypto.randomUUID(), requirement, question: "" });
   const canGenerate = value.some((item) => item.requirement.trim().length >= 10);
   return (
-    <section className="prototype-panel requirements-editor" aria-labelledby="requirements-title">
+    <section
+      className={`prototype-panel requirements-editor ${NO_CAPTURE}`}
+      aria-labelledby="requirements-title"
+    >
       <h2 id="requirements-title">Wymagania roli</h2>
       <p className="requirements-intro">
         Co dokładnie ta osoba ma umieć zrobić w pierwszych miesiącach? Nazwij od {MIN_REQUIREMENTS}{" "}

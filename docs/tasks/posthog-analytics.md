@@ -35,3 +35,12 @@ See the bottom of this file (filled in as checks actually run).
 - With a dummy key: SDK loads only from `eu.i.posthog.com` / `eu-assets.i.posthog.com`; memory persistence logged.
 - Not checked locally: requirements editor and apply form clicks (same `ph-no-capture` mechanism), `role_requirements_saved`, `voice_answer_recorded`, `application_submitted`, error tracking in PostHog UI.
 - `format:check`, `design-system:check`, `lint`, `typecheck`, `test` (41 passed), `verify:packet`, `build`: passed. `test:e2e` not run: Playwright Chromium is not installed on this machine. Bundle grew to ~1.04 MB (348 kB gzip) with posthog-js.
+
+### 2026-11-25 production (https://doroboty-ai-omega.vercel.app, main @ b340249)
+
+- Vercel: `VITE_POSTHOG_KEY` set for Production only (Config type); preview builds therefore have no key and send nothing.
+- Production bundle contains the EU host and a project key; agent browser check: `/e/` and `/i/v0/e/` requests to `eu.i.posthog.com` answered 200; privacy page shows the new PostHog section.
+- Participant test in a private window: click "Zobacz oferty" at 18:14:12 (UTC+1). PostHog Activity → Events shows `Pageview` (`/`, `/#/oferty`) and `clicked link with text "Zobacz oferty"` (autocapture) from the production URL.
+- Activity → Live stayed on "Waiting for events…" on the participant's machine in Chrome and Edge while Events showed the same events; likely a local network/security-software block of the live stream. Not resolved.
+- Safe test error thrown on production at 18:22:42 (agent browser); arrival and message scrubbing in PostHog Error tracking not yet confirmed by the participant.
+- Not done: alerts/notifications (production-readiness `alerts`), refresh of docs/production-readiness.html (source changed since its audit; requires a new assessment).
